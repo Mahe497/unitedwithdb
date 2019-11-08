@@ -1,0 +1,33 @@
+#%RAML 1.0
+version: 1.0.0
+title: unitedwithDB
+baseUri: http://localhost:8081/api
+/unitedflights:
+  get:
+    description: we the all flights of united...............
+    responses:
+      200:
+        body:
+          application/json:
+            example: !include examples/unitedflights.json
+/unitedflightsbydestination:
+    get:
+      queryParameters:
+        destination:
+          required: true
+          minLength: 3
+          maxLength: 3
+          description: particular destination only...........
+      responses:
+       200:
+         body:
+          application/json:
+            example: !include examples/unitedflightsbydestination.json
+
+    /{destination}:
+      get:
+        responses:
+          200:
+            body:
+              application/json:
+                example: !include examples/particulardestination.json

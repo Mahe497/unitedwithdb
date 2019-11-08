@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <http:listener-config name="unitedwithdb-httpListenerConfig" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <apikit:config name="unitedwithdb-config" raml="unitedwithdb.raml" consoleEnabled="false" doc:name="Router"/>
+    <flow name="unitedwithdb-main">
+        <http:listener config-ref="unitedwithdb-httpListenerConfig" path="/api/*" doc:name="HTTP"/>
+        <apikit:router config-ref="unitedwithdb-config" doc:name="APIkit Router"/>
+        <exception-strategy ref="unitedwithdb-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy"/>
+    </flow>
+    <flow name="unitedwithdb-console">
+        <http:listener config-ref="unitedwithdb-httpListenerConfig" path="/console/*" doc:name="HTTP"/>
+        <apikit:console config-ref="unitedwithdb-config" doc:name="APIkit Console"/>
+    </flow>
+    <flow name="get:/unitedflights:unitedwithdb-config">
+        <logger message="request the data............" level="INFO" doc:name="Logger"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-variable variableName="uniqueId"><![CDATA[%dw 1.0
+%output application/java
+---
+  inboundProperties.uniqueid]]></dw:set-variable>
+            <dw:set-variable variableName="sourceApp"><![CDATA[%dw 1.0
+%output application/java
+---
+inboundProperties.sourceapp]]></dw:set-variable>
+            <dw:set-variable variableName="requestTime"><![CDATA[%dw 1.0
+%output application/java
+---
+now as :string {format: "yyyy-MM-dd HH:mm:ss.SSS"}]]></dw:set-variable>
+            <dw:set-variable variableName="srcRequest"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	"queryParams": {
+		destination:inboundProperties."http.uri.params".destination
+		
+		}
+}]]></dw:set-variable>
+        </dw:transform-message>
+        <flow-ref name="unitedflightsFlow" doc:name="unitedflightsFlow"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-variable variableName="responseTime"><![CDATA[%dw 1.0
+%output application/java
+---
+now as :string {format: "yyyy-MM-dd HH:mm:ss.SSS"}]]></dw:set-variable>
+            <dw:set-variable variableName="srcResponse"><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-variable>
+        </dw:transform-message>
+        <async doc:name="Async">
+            <flow-ref name="auditFlow" doc:name="auditFlow"/>
+        </async>
+        <logger message="sending the data................#[payload]" level="INFO" doc:name="Logger"/>
+
+    </flow>
+    <flow name="get:/unitedflightsbydestination:unitedwithdb-config">
+        <logger message="requesting the data.................." level="INFO" doc:name="Logger"/>
+        <set-variable variableName="destination" value="#[message.inboundProperties.'http.query.params'.destination]" doc:name="destination"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	UniqueId:flowVars.uniqueId,
+	sourceApp:flowVars.sourceApp,
+	requestTime:flowVars.requestTime,
+	srcRequest:flowVars.srcRequest
+	
+	
+	
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <flow-ref name="unitedflightsbydestinationFlow" doc:name="unitedflightsbydestinationFlow"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	responseTime:flowVars.responseTime,
+	srcResponse:flowVars.srcResponse
+	
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <async doc:name="Async">
+            <flow-ref name="auditFlow" doc:name="auditFlow"/>
+        </async>
+        <logger message="sending the data..................#[payload]" level="INFO" doc:name="Logger"/>
+
+    </flow>
+    <flow name="get:/unitedflightsbydestination/{destination}:unitedwithdb-config">
+        <logger message="requesting the data.................." level="INFO" doc:name="Logger"/>
+        <set-variable variableName="destination" value="#[message.inboundProperties.'http.uri.params'.destination]" doc:name="destination"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+ 
+	UniqueId:flowVars.uniqueId,
+	sourceApp:flowVars.sourceApp,
+	requestTime:flowVars.requestTime,
+	srcRequest:flowVars.srcRequest
+	
+
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <flow-ref name="unitedflightsbydestinationFlow" doc:name="unitedflightsbydestinationFlow"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	responseTime:flowVars.responseTime,
+	srcResponse:flowVars.srcResponse
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <async doc:name="Async">
+            <flow-ref name="auditFlow" doc:name="auditFlow"/>
+        </async>
+        <logger message="sending the data..................#[payload]" level="INFO" doc:name="Logger"/>
+
+    </flow>
+    <apikit:mapping-exception-strategy name="unitedwithdb-apiKitGlobalExceptionMapping">
+        <apikit:mapping statusCode="404">
+            <apikit:exception value="org.mule.module.apikit.exception.NotFoundException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Resource not found&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="405">
+            <apikit:exception value="org.mule.module.apikit.exception.MethodNotAllowedException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Method not allowed&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="415">
+            <apikit:exception value="org.mule.module.apikit.exception.UnsupportedMediaTypeException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Unsupported media type&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="406">
+            <apikit:exception value="org.mule.module.apikit.exception.NotAcceptableException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Not acceptable&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="400">
+            <apikit:exception value="org.mule.module.apikit.exception.BadRequestException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+    </apikit:mapping-exception-strategy>
+</mule>
